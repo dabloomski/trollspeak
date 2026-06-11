@@ -1,0 +1,18 @@
+## Interface: 11506
+## Title: TrollSpeak
+## Notes: Translates text to troll-speak for the hardcore troll guild
+## Author: TrollSpeak Guild
+## Version: 1.2
+## SavedVariables: TrollSpeakDB
+## X-Embeds: LibStub, LibDataBroker-1.1, LibDBIcon-1.0
+
+libs\LibStub\LibStub.lua
+libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
+
+TrollSpeak_Words.lua
+TrollSpeak_Rules.lua
+TrollSpeak_Phrases.lua
+TrollSpeak_Settings.lua
+TrollSpeak.lua
+TrollSpeak_UI.lua
