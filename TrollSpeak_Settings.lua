@@ -34,6 +34,12 @@ function TrollSpeak_InitDB()
     if not TrollSpeakDB.customPhrases then
         TrollSpeakDB.customPhrases = {}
     end
+    if not TrollSpeakDB.customStarters then
+        TrollSpeakDB.customStarters = {}
+    end
+    if not TrollSpeakDB.customEndings then
+        TrollSpeakDB.customEndings = {}
+    end
     if not TrollSpeakDB.minimap then
         TrollSpeakDB.minimap = {}
     end
@@ -109,4 +115,26 @@ function TrollSpeak_HandleListPhrases()
     if count == 0 then
         print(PREFIX .. "  (none)")
     end
+end
+
+function TrollSpeak_AddStarter(text)
+    text = text:match("^%s*(.-)%s*$")
+    if text == "" then return false, "Starter cannot be empty." end
+    TrollSpeakDB.customStarters[#TrollSpeakDB.customStarters + 1] = text
+    return true
+end
+
+function TrollSpeak_RemoveStarter(index)
+    table.remove(TrollSpeakDB.customStarters, index)
+end
+
+function TrollSpeak_AddEnding(text)
+    text = text:match("^%s*(.-)%s*$")
+    if text == "" then return false, "Ending cannot be empty." end
+    TrollSpeakDB.customEndings[#TrollSpeakDB.customEndings + 1] = text
+    return true
+end
+
+function TrollSpeak_RemoveEnding(index)
+    table.remove(TrollSpeakDB.customEndings, index)
 end

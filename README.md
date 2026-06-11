@@ -4,7 +4,9 @@
 
 Use `/troll on` to enable auto-translate for common channels, or pick specific ones with `/troll on guild`, `/troll on say`, etc. `/troll off` pauses it without touching your settings. Right-click the minimap icon to open settings, left-click to toggle on/off.
 
-The settings panel lets you configure which channels are active, adjust how often starter and ending phrases are added, and manage your own custom phrases. Test a line before sending with `/troll test <text>`. Translate and send immediately with `/troll <text>`. Custom phrases can be added through the settings panel or via `/troll add <original>|<translation>` — they take priority over everything else, so you can override any built-in phrase.
+The settings panel has two tabs. **Settings** lets you configure which channels are active, tune how often starter and ending phrases appear, and manage your own custom phrases, starters, and endings. **Phrases** is a searchable reference of every built-in trigger and the actual phrases it can produce — useful for sharing with guildies. Test a line before sending with `/troll test <text>`.
+
+Custom phrases, starters, and endings are added through the settings panel or via slash commands, and survive addon updates. Custom phrases take priority over built-in ones, so you can override anything you don't like.
 
 Built for **Darkspear Tribe** — a hardcore troll-only guild on WoW Classic Era.
 
@@ -34,8 +36,23 @@ Built for **Darkspear Tribe** — a hardcore troll-only guild on WoW Classic Era
 | `/troll remove <original>` | Remove a custom phrase |
 | `/troll list` | List all custom phrases |
 | `/troll ui` | Open settings panel |
+| `/troll who` | Survey the guild for TrollSpeak users and versions |
 
 Channels: `say`, `yell`, `emote`, `party`, `guild` are enabled by `/troll on`. `raid` and `whisper` require explicit opt-in with `/troll on raid` etc.
+
+---
+
+## Settings panel
+
+### Settings tab
+- **Auto-Translate Channels** — toggle each channel independently
+- **Probabilities** — sliders for starter chance (default 15%) and ending chance (default 40%)
+- **Custom Starters** — add your own opener phrases (e.g. `Ey mon, ` — include the trailing space)
+- **Custom Endings** — add your own closing phrases; end with `?` for the question pool, `!` for exclaim, anything else for neutral
+- **Custom Phrases** — exact-match overrides; checked before everything else
+
+### Phrases tab
+Full reference of every built-in trigger and the phrases it can produce, with the actual output shown (not just pool names). Type in the search box to filter by trigger word or phrase text.
 
 ---
 
@@ -50,8 +67,7 @@ Common words are always swapped:
 | think / thing / thanks | tink / ting / tanks |
 | brother / mother / never / other | brothah / mothah / nevah / othah |
 | you / your | ya |
-| I | me |
-| I am | me be |
+| I am | I be |
 | running / watching / going | runnin' / watchin' / goin' |
 | are | be |
 | going to | goin' ta |
@@ -87,7 +103,7 @@ Short phrases are matched exactly and replaced with troll-speak from a pool. A f
 | `don't die` | *"stay alive mon, da Loa not ready for ya yet"* |
 | `good morning` / `gm` | *"Rise and shine, brudda! Da Loa got work for ya today!"* |
 
-Phrases skip the starter/ending system — they're already complete troll sentences.
+Phrases skip the starter/ending system — they're already complete troll sentences. The full list with all pool variants is visible in-game on the **Phrases** tab of the settings panel.
 
 ---
 
@@ -96,7 +112,16 @@ Phrases skip the starter/ending system — they're already complete troll senten
 Add your own via the settings panel or `/troll add <original>|<translation>`. Custom phrases override built-in ones, so you can tweak anything you don't like.
 
 ```
-/troll add let go|Forward warriors, da Loa be wit us!
+/troll add lets go|Forward warriors, da Loa be wit us!
 /troll list
-/troll remove let go
+/troll remove lets go
 ```
+
+## Custom starters and endings
+
+Custom starters and endings are mixed into the built-in pools — the addon picks randomly from all of them together. Add them on the **Settings** tab or they can also be added slash commands in the future.
+
+For endings, the pool is chosen by the punctuation at the end of what you type:
+- Ends with `?` → question pool
+- Ends with `!` → exclaim pool  
+- Anything else → neutral pool

@@ -1,5 +1,5 @@
 local PREFIX         = "|cffff9900TrollSpeak:|r "
-local ADDON_VERSION  = "1.2"
+local ADDON_VERSION  = "1.3"
 
 local starters = {
     "Ya mon, ",
@@ -75,6 +75,13 @@ function TrollSpeak_Translate(text)
     workText = TrollSpeakWords.Apply(workText)
     workText = TrollSpeakRules.Apply(workText)
 
+    -- Detect and strip trailing smiley so it always ends up after any added ending
+    local smiley = ""
+    workText = workText:gsub("%s*([:;=xX8%-][%-o]?[%)D%(Pp/\\|3oO]%s*)$", function(s)
+        smiley = " " .. s:match("^%s*(.-)%s*$")
+        return ""
+    end)
+
     -- Detect and strip trailing punctuation
     local lastChar      = workText:sub(-1)
     local endingPool    = endingsNeutral
@@ -93,18 +100,39 @@ function TrollSpeak_Translate(text)
         workText      = workText:sub(1, -2)
     end
 
+    -- Merge custom starters and endings into the built-in pools
+    local allStarters = {}
+    for _, v in ipairs(starters) do allStarters[#allStarters + 1] = v end
+    if TrollSpeakDB and TrollSpeakDB.customStarters then
+        for _, v in ipairs(TrollSpeakDB.customStarters) do allStarters[#allStarters + 1] = v end
+    end
+
+    local allEndingPool = {}
+    for _, v in ipairs(endingPool) do allEndingPool[#allEndingPool + 1] = v end
+    if TrollSpeakDB and TrollSpeakDB.customEndings then
+        for _, v in ipairs(TrollSpeakDB.customEndings) do
+            local last = v:sub(-1)
+            local matchesPool = (last == "?" and endingPool == endingsQuestion)
+                             or (last == "!" and endingPool == endingsExclaim)
+                             or (last ~= "?" and last ~= "!" and endingPool == endingsNeutral)
+            if matchesPool then
+                allEndingPool[#allEndingPool + 1] = v
+            end
+        end
+    end
+
     local starterChance = TrollSpeakDB and TrollSpeakDB.starterChance or 15
     local endingChance  = TrollSpeakDB and TrollSpeakDB.endingChance  or 40
     local roll = math.random(100)
 
     if roll <= starterChance then
-        local starter = starters[math.random(#starters)]
-        workText = starter .. workText:sub(1, 1):lower() .. workText:sub(2) .. trailingPunct
+        local starter = allStarters[math.random(#allStarters)]
+        workText = starter .. workText:sub(1, 1):lower() .. workText:sub(2) .. trailingPunct .. smiley
     elseif roll <= starterChance + endingChance then
-        local ending = endingPool[math.random(#endingPool)]
-        workText = workText .. ending
+        local ending = allEndingPool[math.random(#allEndingPool)]
+        workText = workText .. ending .. smiley
     else
-        workText = workText .. trailingPunct
+        workText = workText .. trailingPunct .. smiley
     end
 
     -- Apply capitalisation before restoring links so links stay in original case.
