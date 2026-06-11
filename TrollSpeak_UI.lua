@@ -180,7 +180,7 @@ local function BuildUI()
         return fs
     end
 
-    Header("TrollSpeak", -16)
+    Header("TrollSpeak  v" .. (GetAddOnMetadata("TrollSpeak", "Version") or "?"), -16)
 
     -- ── CHANNELS ─────────────────────────────────────────────────────────────
 

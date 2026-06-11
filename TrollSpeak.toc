@@ -1,8 +1,8 @@
 ## Interface: 11506
 ## Title: TrollSpeak
 ## Notes: Translates text to troll-speak for the hardcore troll guild
-## Author: TrollSpeak Guild
-## Version: 1.2
+## Author: dabloom (FisherPaul)
+## Version: 1.1
 ## SavedVariables: TrollSpeakDB
 ## X-Embeds: LibStub, LibDataBroker-1.1, LibDBIcon-1.0
 
