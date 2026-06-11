@@ -6,7 +6,7 @@ Use `/troll on` to enable auto-translate for common channels, or pick specific o
 
 The settings panel lets you configure which channels are active, adjust how often starter and ending phrases are added, and manage your own custom phrases. Test a line before sending with `/troll test <text>`. Translate and send immediately with `/troll <text>`. Custom phrases can be added through the settings panel or via `/troll add <original>|<translation>` — they take priority over everything else, so you can override any built-in phrase.
 
-Built for **[Guild Name]** — a hardcore troll-only guild on WoW Classic Era.
+Built for **Darkspear Tribe** — a hardcore troll-only guild on WoW Classic Era.
 
 ---
 
@@ -24,7 +24,7 @@ Built for **[Guild Name]** — a hardcore troll-only guild on WoW Classic Era.
 |---|---|
 | `/troll <text>` | Translate and send to active channel |
 | `/troll test <text>` | Translate and print locally — nothing sent |
-| `/troll ooc <text>` | Send without translation |
+| `/troll ooc <text>` | Out of Character, send without translation |
 | `/troll on [channel]` | Enable auto-translate (no arg = all social channels) |
 | `/troll off [channel]` | Disable auto-translate (no arg = pause all) |
 | `/troll status` | Show current settings |
@@ -96,7 +96,7 @@ Phrases skip the starter/ending system — they're already complete troll senten
 Add your own via the settings panel or `/troll add <original>|<translation>`. Custom phrases override built-in ones, so you can tweak anything you don't like.
 
 ```
-/troll add letsa go|Forward warriors, da Loa be wit us!
+/troll add let go|Forward warriors, da Loa be wit us!
 /troll list
-/troll remove letsa go
+/troll remove let go
 ```
