@@ -3,7 +3,6 @@ local _mainCat     = nil  -- Settings API category object, shared by both build 
 local phraseRows   = {}
 local starterRows  = {}
 local endingRows   = {}
-local allPhraseGroups = {}  -- built once for phrase reference panel
 
 -- ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -87,8 +86,9 @@ local function RefreshPhraseList()
 
     for _, row in ipairs(phraseRows) do row:Hide() end
 
+    local dialectKey = TrollSpeakCharDB and TrollSpeakCharDB.activeDialect or "troll"
     local sorted = {}
-    for orig, trans in pairs(TrollSpeakDB and TrollSpeakDB.customPhrases or {}) do
+    for orig, trans in pairs(TrollSpeakDB and TrollSpeakDB.customPhrases and TrollSpeakDB.customPhrases[dialectKey] or {}) do
         sorted[#sorted + 1] = { orig = orig, trans = trans }
     end
     table.sort(sorted, function(a, b) return a.orig < b.orig end)
@@ -123,7 +123,7 @@ local function RefreshPhraseList()
         row.lbl:SetText('"' .. p.orig .. '" -> "' .. p.trans .. '"')
         row.orig = p.orig
         row.btn:SetScript("OnClick", function()
-            TrollSpeakDB.customPhrases[row.orig] = nil
+            TrollSpeakDB.customPhrases[dialectKey][row.orig] = nil
             RefreshPhraseList()
         end)
         row:Show()
@@ -139,23 +139,34 @@ local endingContent  = nil
 
 local function RefreshStarterList()
     if not starterContent or not TrollSpeakDB then return end
+    local dialectKey = TrollSpeakCharDB and TrollSpeakCharDB.activeDialect or "troll"
     RefreshSimpleList(starterContent, starterRows,
-        TrollSpeakDB.customStarters, TrollSpeak_RemoveStarter,
+        TrollSpeakDB.customStarters[dialectKey],
+        function(index) TrollSpeak_RemoveStarter(index, dialectKey) end,
         function() RefreshStarterList() end)
 end
 
 local function RefreshEndingList()
     if not endingContent or not TrollSpeakDB then return end
+    local dialectKey = TrollSpeakCharDB and TrollSpeakCharDB.activeDialect or "troll"
     RefreshSimpleList(endingContent, endingRows,
-        TrollSpeakDB.customEndings, TrollSpeak_RemoveEnding,
+        TrollSpeakDB.customEndings[dialectKey],
+        function(index) TrollSpeak_RemoveEnding(index, dialectKey) end,
         function() RefreshEndingList() end)
 end
 
 local function SyncFromDB()
-    if not panel or not TrollSpeakDB then return end
+    if not panel or not TrollSpeakDB or not TrollSpeakCharDB then return end
+
+    if panel.dialectDropdown then
+        local dialectKey = TrollSpeakCharDB.activeDialect or "troll"
+        local dialect     = TrollSpeakDialects and TrollSpeakDialects[dialectKey]
+        UIDropDownMenu_SetSelectedValue(panel.dialectDropdown, dialectKey)
+        UIDropDownMenu_SetText(panel.dialectDropdown, dialect and dialect.label or dialectKey)
+    end
 
     for ch, cb in pairs(panel.chanCBs) do
-        cb:SetChecked(TrollSpeakDB.autoChannels[ch] or false)
+        cb:SetChecked(TrollSpeakCharDB.autoChannels[ch] or false)
     end
 
     panel.starterSlider:SetValue(TrollSpeakDB.starterChance or 15)
@@ -170,12 +181,17 @@ end
 
 local phraseRefRows    = {}
 local phraseRefContent = nil
+local phraseRefHeader  = nil
 local phraseSearchEB   = nil
+local phraseGroupsCache = {}  -- dialectKey -> groups array, built lazily per dialect
 
-local function BuildPhraseGroups()
-    local FILLER = "mon"
+local function BuildPhraseGroups(dialectKey)
+    local dialect = TrollSpeakDialects and TrollSpeakDialects[dialectKey]
+    if not dialect or not dialect.phrases then return {} end
+
+    local FILLER = (dialect.fillers and dialect.fillers[1]) or "mon"
     local valueToKeys = {}
-    for k, v in pairs(TrollSpeakPhrases) do
+    for k, v in pairs(dialect.phrases) do
         if not valueToKeys[v] then valueToKeys[v] = {} end
         valueToKeys[v][#valueToKeys[v] + 1] = k
     end
@@ -186,7 +202,7 @@ local function BuildPhraseGroups()
 
         local phrases = {}
         if val:sub(1, 1) == "@" then
-            local pool = TrollSpeakPools and TrollSpeakPools[val]
+            local pool = dialect.pools and dialect.pools[val]
             if pool then
                 for _, p in ipairs(pool) do
                     phrases[#phrases + 1] = p:gsub("{filler}", FILLER)
@@ -212,13 +228,26 @@ local function BuildPhraseGroups()
     return groups
 end
 
+local function GetPhraseGroups(dialectKey)
+    if not phraseGroupsCache[dialectKey] then
+        phraseGroupsCache[dialectKey] = BuildPhraseGroups(dialectKey)
+    end
+    return phraseGroupsCache[dialectKey]
+end
+
 local function RefreshPhraseRef(filter)
     if not phraseRefContent then return end
+
+    local dialectKey = TrollSpeakCharDB and TrollSpeakCharDB.activeDialect or "troll"
+    if phraseRefHeader then
+        local dialect = TrollSpeakDialects and TrollSpeakDialects[dialectKey]
+        phraseRefHeader:SetText("Phrases — " .. (dialect and dialect.label or dialectKey))
+    end
 
     filter = filter and filter:lower():match("^%s*(.-)%s*$") or ""
 
     local items = {}
-    for gi, group in ipairs(allPhraseGroups) do
+    for gi, group in ipairs(GetPhraseGroups(dialectKey)) do
         local show = filter == "" or group.searchText:find(filter, 1, true)
         if show then
             if gi > 1 then
@@ -282,14 +311,14 @@ local ldb = LibStub("LibDataBroker-1.1"):NewDataObject("TrollSpeak", {
             TrollSpeak_ShowUI()
             return
         end
-        TrollSpeakDB.masterEnabled = not TrollSpeakDB.masterEnabled
+        TrollSpeakCharDB.masterEnabled = not TrollSpeakCharDB.masterEnabled
         TrollSpeak_UpdateMinimapButton()
         if panel and panel:IsShown() then SyncFromDB() end
     end,
 
     OnTooltipShow = function(tooltip)
         tooltip:SetText("TrollSpeak")
-        local active = TrollSpeakDB and TrollSpeakDB.masterEnabled
+        local active = TrollSpeakCharDB and TrollSpeakCharDB.masterEnabled
         tooltip:AddLine(active and "|cff00ff00Active|r" or "|cffff0000Inactive|r")
         tooltip:AddLine("Left-click: toggle on/off", 1, 1, 1)
         tooltip:AddLine("Right-click: open settings", 1, 1, 1)
@@ -301,7 +330,7 @@ function TrollSpeak_UpdateMinimapButton()
     if not dbIcon then return end
     local btn = dbIcon:GetMinimapButton("TrollSpeak")
     if not btn then return end
-    local active = TrollSpeakDB and TrollSpeakDB.masterEnabled
+    local active = TrollSpeakCharDB and TrollSpeakCharDB.masterEnabled
     btn.icon:SetDesaturated(not active)
 end
 
@@ -336,11 +365,11 @@ local function BuildSettingsPanel()
     panel.okay    = function() end
     panel.cancel  = function() end
     panel.default = function()
-        if not TrollSpeakDB then return end
+        if not TrollSpeakDB or not TrollSpeakCharDB then return end
         TrollSpeakDB.starterChance = 15
         TrollSpeakDB.endingChance  = 40
-        for ch in pairs(TrollSpeakDB.autoChannels) do
-            TrollSpeakDB.autoChannels[ch] = false
+        for ch in pairs(TrollSpeakCharDB.autoChannels) do
+            TrollSpeakCharDB.autoChannels[ch] = false
         end
         TrollSpeak_UpdateMinimapButton()
         SyncFromDB()
@@ -350,6 +379,38 @@ local function BuildSettingsPanel()
     local hdr = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     hdr:SetPoint("TOPLEFT", panel, "TOPLEFT", 16, -16)
     hdr:SetText("TrollSpeak  v" .. (GetAddOnMetadata("TrollSpeak", "Version") or "?"))
+
+    -- Dialect picker (this character's active dialect for /troll-less auto-translate)
+    MakeLabel(panel, "Dialect:", 380, -20)
+
+    local dialectDropdown = CreateFrame("Frame", "TrollSpeakDialectDropdown", panel, "UIDropDownMenuTemplate")
+    dialectDropdown:SetPoint("TOPLEFT", panel, "TOPLEFT", 428, -8)
+    UIDropDownMenu_SetWidth(dialectDropdown, 90)
+
+    local function OnDialectSelected(self)
+        if TrollSpeakCharDB then
+            TrollSpeakCharDB.activeDialect = self.value
+        end
+        UIDropDownMenu_SetSelectedValue(dialectDropdown, self.value)
+        CloseDropDownMenus()
+        SyncFromDB()
+    end
+
+    UIDropDownMenu_Initialize(dialectDropdown, function(self, level)
+        local keys = {}
+        for key in pairs(TrollSpeakDialects or {}) do keys[#keys + 1] = key end
+        table.sort(keys)
+        for _, key in ipairs(keys) do
+            local info = UIDropDownMenu_CreateInfo()
+            info.text    = TrollSpeakDialects[key].label or key
+            info.value   = key
+            info.func    = OnDialectSelected
+            info.checked = (TrollSpeakCharDB and TrollSpeakCharDB.activeDialect == key)
+            UIDropDownMenu_AddButton(info)
+        end
+    end)
+
+    panel.dialectDropdown = dialectDropdown
 
     -- All settings content lives inside a scroll frame (content is taller than panel)
     local sf = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
@@ -377,8 +438,8 @@ local function BuildSettingsPanel()
         cb:SetPoint("TOPLEFT", c, "TOPLEFT", x, y)
         cb.text:SetText(ch:sub(1,1):upper() .. ch:sub(2))
         cb:SetScript("OnClick", function(self)
-            if TrollSpeakDB and TrollSpeakDB.autoChannels then
-                TrollSpeakDB.autoChannels[ch] = self:GetChecked()
+            if TrollSpeakCharDB and TrollSpeakCharDB.autoChannels then
+                TrollSpeakCharDB.autoChannels[ch] = self:GetChecked()
                 TrollSpeak_UpdateMinimapButton()
             end
         end)
@@ -510,7 +571,7 @@ local function BuildSettingsPanel()
         local trans = panel.transEB:GetText():match("^%s*(.-)%s*$")
         if orig == "" or trans == "" then return end
         if not TrollSpeakDB then return end
-        TrollSpeakDB.customPhrases[orig] = trans
+        TrollSpeakDB.customPhrases[TrollSpeakCharDB and TrollSpeakCharDB.activeDialect or "troll"][orig] = trans
         panel.origEB:SetText("")
         panel.transEB:SetText("")
         panel.origEB:SetFocus()
@@ -573,17 +634,16 @@ local function BuildPhrasesPanel()
     end
 
     pp:SetScript("OnShow", function()
-        if #allPhraseGroups == 0 then
-            allPhraseGroups = BuildPhraseGroups()
-        end
         RefreshPhraseRef(phraseSearchEB and phraseSearchEB:GetText() or "")
     end)
 
-    MakeLabel(pp, "Search:", 16, -16)
+    phraseRefHeader = MakeHeader(pp, "Phrases", 0)
+
+    MakeLabel(pp, "Search:", 16, -34)
 
     phraseSearchEB = CreateFrame("EditBox", nil, pp, "InputBoxTemplate")
     phraseSearchEB:SetSize(530, 20)
-    phraseSearchEB:SetPoint("TOPLEFT", pp, "TOPLEFT", 72, -16)
+    phraseSearchEB:SetPoint("TOPLEFT", pp, "TOPLEFT", 72, -34)
     phraseSearchEB:SetAutoFocus(false)
     phraseSearchEB:SetMaxLetters(80)
     phraseSearchEB:SetScript("OnEscapePressed", function(self)
@@ -597,8 +657,8 @@ local function BuildPhrasesPanel()
     AddHint(phraseSearchEB, "type to filter...")
 
     local refSF = CreateFrame("ScrollFrame", nil, pp, "UIPanelScrollFrameTemplate")
-    refSF:SetSize(566, 510)
-    refSF:SetPoint("TOPLEFT", pp, "TOPLEFT", 16, -44)
+    refSF:SetSize(566, 492)
+    refSF:SetPoint("TOPLEFT", pp, "TOPLEFT", 16, -62)
     phraseRefContent = CreateFrame("Frame", nil, refSF)
     phraseRefContent:SetWidth(546)
     phraseRefContent:SetHeight(1)

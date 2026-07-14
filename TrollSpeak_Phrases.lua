@@ -1,4 +1,4 @@
-local fillers = {
+TrollSpeakFillers = {
     "mon",
     "brudda",
     "friend",
@@ -269,7 +269,7 @@ TrollSpeakPhrases = {
 
 local function ResolveFiller(text)
     return (text:gsub("{filler}", function()
-        return fillers[math.random(#fillers)]
+        return TrollSpeakFillers[math.random(#TrollSpeakFillers)]
     end))
 end
 

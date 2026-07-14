@@ -2,8 +2,9 @@
 ## Title: TrollSpeak
 ## Notes: Translates text to troll-speak for the hardcore troll guild
 ## Author: dabloom (FishingPaul)
-## Version: 1.3
+## Version: 1.4
 ## SavedVariables: TrollSpeakDB
+## SavedVariablesPerCharacter: TrollSpeakCharDB
 ## X-Embeds: LibStub, LibDataBroker-1.1, LibDBIcon-1.0
 
 libs\LibStub\LibStub.lua
@@ -13,6 +14,9 @@ libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 TrollSpeak_Words.lua
 TrollSpeak_Rules.lua
 TrollSpeak_Phrases.lua
+TrollSpeak_DwarfWords.lua
+TrollSpeak_DwarfRules.lua
+TrollSpeak_DwarfPhrases.lua
 TrollSpeak_Settings.lua
 TrollSpeak.lua
 TrollSpeak_UI.lua

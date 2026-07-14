@@ -1,5 +1,5 @@
 local PREFIX         = "|cffff9900TrollSpeak:|r "
-local ADDON_VERSION  = "1.3"
+local ADDON_VERSION  = "1.4"
 
 local starters = {
     "Ya mon, ",
@@ -35,8 +35,26 @@ local endingsExclaim = {
     ", brudda!",
 }
 
-function TrollSpeak_Translate(text)
+TrollSpeakDialects = TrollSpeakDialects or {}
+TrollSpeakDialects["troll"] = {
+    label           = "Troll",
+    words           = TrollSpeakWords,
+    rules           = TrollSpeakRules,
+    getPhrase       = TrollSpeak_GetPhrase,
+    phrases         = TrollSpeakPhrases,  -- raw tables, for UI introspection (e.g. phrase reference tab)
+    pools           = TrollSpeakPools,
+    fillers         = TrollSpeakFillers,
+    starters        = starters,
+    endingsNeutral  = endingsNeutral,
+    endingsQuestion = endingsQuestion,
+    endingsExclaim  = endingsExclaim,
+}
+
+function TrollSpeak_Translate(text, dialectKey)
     if not text or text == "" then return text end
+
+    dialectKey = dialectKey or (TrollSpeakCharDB and TrollSpeakCharDB.activeDialect) or "troll"
+    local dialect = TrollSpeakDialects[dialectKey] or TrollSpeakDialects["troll"]
 
     -- Extract WoW hyperlinks before any processing.
     -- text:lower() corrupts |H (required uppercase) into |h, breaking the link.
@@ -64,16 +82,16 @@ function TrollSpeak_Translate(text)
     end
 
     -- Custom phrases (highest priority, returned as-is)
-    local result = TrollSpeak_GetCustomPhrase(trimmed)
+    local result = TrollSpeak_GetCustomPhrase(trimmed, dialectKey)
     if result then return applyCaps(result) end
 
     -- Built-in phrases (returned as-is, no starters/endings)
-    result = TrollSpeak_GetPhrase(trimmed)
+    result = dialect.getPhrase(trimmed)
     if result then return applyCaps(result) end
 
     -- Word lists then rules
-    workText = TrollSpeakWords.Apply(workText)
-    workText = TrollSpeakRules.Apply(workText)
+    workText = dialect.words.Apply(workText)
+    workText = dialect.rules.Apply(workText)
 
     -- Detect and strip trailing smiley so it always ends up after any added ending
     local smiley = ""
@@ -84,15 +102,15 @@ function TrollSpeak_Translate(text)
 
     -- Detect and strip trailing punctuation
     local lastChar      = workText:sub(-1)
-    local endingPool    = endingsNeutral
+    local endingPool    = dialect.endingsNeutral
     local trailingPunct = ""
 
     if lastChar == "?" then
-        endingPool    = endingsQuestion
+        endingPool    = dialect.endingsQuestion
         trailingPunct = "?"
         workText      = workText:sub(1, -2)
     elseif lastChar == "!" then
-        endingPool    = endingsExclaim
+        endingPool    = dialect.endingsExclaim
         trailingPunct = "!"
         workText      = workText:sub(1, -2)
     elseif lastChar == "." then
@@ -102,19 +120,21 @@ function TrollSpeak_Translate(text)
 
     -- Merge custom starters and endings into the built-in pools
     local allStarters = {}
-    for _, v in ipairs(starters) do allStarters[#allStarters + 1] = v end
-    if TrollSpeakDB and TrollSpeakDB.customStarters then
-        for _, v in ipairs(TrollSpeakDB.customStarters) do allStarters[#allStarters + 1] = v end
+    for _, v in ipairs(dialect.starters) do allStarters[#allStarters + 1] = v end
+    local customStarters = TrollSpeakDB and TrollSpeakDB.customStarters and TrollSpeakDB.customStarters[dialectKey]
+    if customStarters then
+        for _, v in ipairs(customStarters) do allStarters[#allStarters + 1] = v end
     end
 
     local allEndingPool = {}
     for _, v in ipairs(endingPool) do allEndingPool[#allEndingPool + 1] = v end
-    if TrollSpeakDB and TrollSpeakDB.customEndings then
-        for _, v in ipairs(TrollSpeakDB.customEndings) do
+    local customEndings = TrollSpeakDB and TrollSpeakDB.customEndings and TrollSpeakDB.customEndings[dialectKey]
+    if customEndings then
+        for _, v in ipairs(customEndings) do
             local last = v:sub(-1)
-            local matchesPool = (last == "?" and endingPool == endingsQuestion)
-                             or (last == "!" and endingPool == endingsExclaim)
-                             or (last ~= "?" and last ~= "!" and endingPool == endingsNeutral)
+            local matchesPool = (last == "?" and endingPool == dialect.endingsQuestion)
+                             or (last == "!" and endingPool == dialect.endingsExclaim)
+                             or (last ~= "?" and last ~= "!" and endingPool == dialect.endingsNeutral)
             if matchesPool then
                 allEndingPool[#allEndingPool + 1] = v
             end
@@ -162,17 +182,17 @@ local function OnEnterPressedHandler(editBox)
     lastChatType   = chatType
     lastTellTarget = editBox:GetAttribute("tellTarget")
 
-    if TrollSpeakDB and TrollSpeakDB.masterEnabled
-    and TrollSpeakDB.autoChannels
+    if TrollSpeakCharDB and TrollSpeakCharDB.masterEnabled
+    and TrollSpeakCharDB.autoChannels
     and text and text ~= "" and text:sub(1, 1) ~= "/" then
         local ct = chatType:lower()
-        if (ct == "say"     and TrollSpeakDB.autoChannels.say)
-        or (ct == "yell"    and TrollSpeakDB.autoChannels.yell)
-        or (ct == "emote"   and TrollSpeakDB.autoChannels.emote)
-        or (ct == "party"   and TrollSpeakDB.autoChannels.party)
-        or (ct == "guild"   and TrollSpeakDB.autoChannels.guild)
-        or (ct == "raid"    and TrollSpeakDB.autoChannels.raid)
-        or (ct == "whisper" and TrollSpeakDB.autoChannels.whisper) then
+        if (ct == "say"     and TrollSpeakCharDB.autoChannels.say)
+        or (ct == "yell"    and TrollSpeakCharDB.autoChannels.yell)
+        or (ct == "emote"   and TrollSpeakCharDB.autoChannels.emote)
+        or (ct == "party"   and TrollSpeakCharDB.autoChannels.party)
+        or (ct == "guild"   and TrollSpeakCharDB.autoChannels.guild)
+        or (ct == "raid"    and TrollSpeakCharDB.autoChannels.raid)
+        or (ct == "whisper" and TrollSpeakCharDB.autoChannels.whisper) then
             editBox:SetText(TrollSpeak_Translate(text))
         end
     end
@@ -227,11 +247,16 @@ local function HookChatFrames()
     end
 end
 
-local function HandleSlashCommand(input)
+local function HandleSlashCommand(input, dialectKey)
+    dialectKey = dialectKey or "troll"
+    local dialect      = TrollSpeakDialects[dialectKey]
+    local dialectLabel = dialect and dialect.label or dialectKey
+
     input = input:match("^%s*(.-)%s*$")
 
     if input == "" then
-        print(PREFIX .. "/troll <text>               - translate and send")
+        print(PREFIX .. "/troll <text>               - translate to Troll and send")
+        print(PREFIX .. "/dwarf <text>               - translate to Dwarf and send")
         print(PREFIX .. "/troll test <text>          - translate and print only (no send)")
         print(PREFIX .. "/troll on [channel]  - enable (no arg = say/yell/emote/party/guild)")
         print(PREFIX .. "/troll off [channel] - disable (no arg = all channels)")
@@ -240,9 +265,10 @@ local function HandleSlashCommand(input)
         print(PREFIX .. "/troll ui                   - open settings panel")
         print(PREFIX .. "/troll config starter <0-100>")
         print(PREFIX .. "/troll config ending  <0-100>")
-        print(PREFIX .. "/troll add <original>|<translation>")
-        print(PREFIX .. "/troll remove <original>")
-        print(PREFIX .. "/troll list")
+        print(PREFIX .. "/troll config dialect <troll|dwarf> - dialect used for auto-translate")
+        print(PREFIX .. "/troll add <original>|<translation>   (or /dwarf add ...)")
+        print(PREFIX .. "/troll remove <original>              (or /dwarf remove ...)")
+        print(PREFIX .. "/troll list                            (or /dwarf list)")
         return
     end
 
@@ -255,21 +281,21 @@ local function HandleSlashCommand(input)
         if ch == "" then
             -- First-time: if no channels configured yet, set social defaults
             local hasAny = false
-            for _, v in pairs(TrollSpeakDB.autoChannels) do
+            for _, v in pairs(TrollSpeakCharDB.autoChannels) do
                 if v then hasAny = true; break end
             end
             if not hasAny then
-                TrollSpeakDB.autoChannels.say   = true
-                TrollSpeakDB.autoChannels.yell  = true
-                TrollSpeakDB.autoChannels.emote = true
-                TrollSpeakDB.autoChannels.party = true
-                TrollSpeakDB.autoChannels.guild = true
+                TrollSpeakCharDB.autoChannels.say   = true
+                TrollSpeakCharDB.autoChannels.yell  = true
+                TrollSpeakCharDB.autoChannels.emote = true
+                TrollSpeakCharDB.autoChannels.party = true
+                TrollSpeakCharDB.autoChannels.guild = true
             end
-            TrollSpeakDB.masterEnabled = true
+            TrollSpeakCharDB.masterEnabled = true
             print(PREFIX .. "Auto-translate enabled.")
-        elseif TrollSpeakDB.autoChannels[ch] ~= nil then
-            TrollSpeakDB.autoChannels[ch] = true
-            TrollSpeakDB.masterEnabled = true
+        elseif TrollSpeakCharDB.autoChannels[ch] ~= nil then
+            TrollSpeakCharDB.autoChannels[ch] = true
+            TrollSpeakCharDB.masterEnabled = true
             print(PREFIX .. "Auto-translate enabled for " .. ch .. ".")
         else
             print(PREFIX .. "Unknown channel '" .. ch .. "'. Valid: say, yell, emote, party, guild, raid, whisper.")
@@ -279,10 +305,10 @@ local function HandleSlashCommand(input)
     elseif cmd == "off" then
         local ch = rest:lower():match("^%s*(.-)%s*$")
         if ch == "" then
-            TrollSpeakDB.masterEnabled = false
+            TrollSpeakCharDB.masterEnabled = false
             print(PREFIX .. "Auto-translate disabled.")
-        elseif TrollSpeakDB.autoChannels[ch] ~= nil then
-            TrollSpeakDB.autoChannels[ch] = false
+        elseif TrollSpeakCharDB.autoChannels[ch] ~= nil then
+            TrollSpeakCharDB.autoChannels[ch] = false
             print(PREFIX .. "Auto-translate disabled for " .. ch .. ".")
         else
             print(PREFIX .. "Unknown channel '" .. ch .. "'. Valid: say, yell, emote, party, guild, raid, whisper.")
@@ -290,11 +316,12 @@ local function HandleSlashCommand(input)
         TrollSpeak_UpdateMinimapButton()
 
     elseif cmd == "status" then
-        print(PREFIX .. "Auto-translate: " .. (TrollSpeakDB.masterEnabled and "ON" or "OFF"))
+        print(PREFIX .. "Auto-translate: " .. (TrollSpeakCharDB.masterEnabled and "ON" or "OFF"))
         print(PREFIX .. "Starter chance: " .. TrollSpeakDB.starterChance .. "%")
         print(PREFIX .. "Ending chance:  " .. TrollSpeakDB.endingChance .. "%")
+        print(PREFIX .. "Auto-translate dialect: " .. (TrollSpeakCharDB.activeDialect or "troll"))
         local active = {}
-        for ch, on in pairs(TrollSpeakDB.autoChannels) do
+        for ch, on in pairs(TrollSpeakCharDB.autoChannels) do
             if on then active[#active + 1] = ch end
         end
         if #active > 0 then
@@ -311,13 +338,13 @@ local function HandleSlashCommand(input)
         TrollSpeak_HandleConfig(rest)
 
     elseif cmd == "add" then
-        TrollSpeak_HandleAddPhrase(rest)
+        TrollSpeak_HandleAddPhrase(rest, dialectKey)
 
     elseif cmd == "remove" then
-        TrollSpeak_HandleRemovePhrase(rest)
+        TrollSpeak_HandleRemovePhrase(rest, dialectKey)
 
     elseif cmd == "list" then
-        TrollSpeak_HandleListPhrases()
+        TrollSpeak_HandleListPhrases(dialectKey)
 
     elseif cmd == "ooc" then
         if rest == "" then
@@ -333,16 +360,16 @@ local function HandleSlashCommand(input)
         else
             local lower = rest:lower():match("^%s*(.-)%s*$")
             local matchType
-            if TrollSpeak_GetCustomPhrase(lower) then
+            if TrollSpeak_GetCustomPhrase(lower, dialectKey) then
                 matchType = "custom phrase"
-            elseif TrollSpeak_GetPhrase(lower) then
+            elseif dialect.getPhrase(lower) then
                 matchType = "built-in phrase"
             else
                 matchType = "word/rule"
             end
-            print(PREFIX .. "[" .. matchType .. "] 3 rolls:")
+            print(PREFIX .. "[" .. matchType .. ", " .. dialectLabel .. "] 3 rolls:")
             for _ = 1, 3 do
-                print(PREFIX .. "  " .. TrollSpeak_Translate(rest))
+                print(PREFIX .. "  " .. TrollSpeak_Translate(rest, dialectKey))
             end
         end
 
@@ -368,7 +395,7 @@ local function HandleSlashCommand(input)
         end
 
     else
-        local translated = TrollSpeak_Translate(input)
+        local translated = TrollSpeak_Translate(input, dialectKey)
         local chatType, tellTarget = GetActiveChatType()
         SendChatMessage(translated, chatType, nil, tellTarget)
     end
@@ -381,9 +408,10 @@ frame:RegisterEvent("CHAT_MSG_ADDON")
 frame:SetScript("OnEvent", function(self, event, arg1, arg2, arg3, arg4)
     if event == "ADDON_LOADED" and arg1 == "TrollSpeak" then
         TrollSpeak_InitDB()
+        TrollSpeak_InitCharDB()
         HookChatFrames()
         C_ChatInfo.RegisterAddonMessagePrefix("TrollSpeak")
-        print(PREFIX .. "v" .. ADDON_VERSION .. " loaded. Type /troll for help.")
+        print(PREFIX .. "v" .. ADDON_VERSION .. " loaded. Type /troll or /dwarf for help.")
         self:UnregisterEvent("ADDON_LOADED")
 
     elseif event == "PLAYER_LOGIN" then
@@ -397,4 +425,7 @@ frame:SetScript("OnEvent", function(self, event, arg1, arg2, arg3, arg4)
 end)
 
 SLASH_TROLLSPEAK1 = "/troll"
-SlashCmdList["TROLLSPEAK"] = HandleSlashCommand
+SlashCmdList["TROLLSPEAK"] = function(input) HandleSlashCommand(input, "troll") end
+
+SLASH_DWARFSPEAK1 = "/dwarf"
+SlashCmdList["DWARFSPEAK"] = function(input) HandleSlashCommand(input, "dwarf") end
