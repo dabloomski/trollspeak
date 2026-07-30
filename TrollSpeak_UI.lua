@@ -32,6 +32,11 @@ local function MakeHeader(parent, text, y)
     return fs
 end
 
+local function GetAddonVersion(name, field)
+    local getter = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
+    return getter and getter(name, field)
+end
+
 local function MakeLabel(parent, text, x, y)
     local fs = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     fs:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
@@ -378,7 +383,7 @@ local function BuildSettingsPanel()
     -- Version header
     local hdr = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     hdr:SetPoint("TOPLEFT", panel, "TOPLEFT", 16, -16)
-    hdr:SetText("TrollSpeak  v" .. (GetAddOnMetadata("TrollSpeak", "Version") or "?"))
+    hdr:SetText("TrollSpeak  v" .. (GetAddonVersion("TrollSpeak", "Version") or "?"))
 
     -- Dialect picker (this character's active dialect for /troll-less auto-translate)
     MakeLabel(panel, "Dialect:", 380, -20)

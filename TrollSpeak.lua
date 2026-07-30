@@ -1,5 +1,5 @@
 local PREFIX         = "|cffff9900TrollSpeak:|r "
-local ADDON_VERSION  = "1.4"
+local ADDON_VERSION  = "1.5"
 
 local starters = {
     "Ya mon, ",
