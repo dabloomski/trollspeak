@@ -58,10 +58,11 @@ function TrollSpeak_Translate(text, dialectKey)
 
     -- Extract WoW hyperlinks before any processing.
     -- text:lower() corrupts |H (required uppercase) into |h, breaking the link.
+    -- The colour isn't always hex: WoW Forever item links start with |cnIQ1:.
     -- We stash each link, replace it with a sentinel placeholder, and restore after.
     local S = "\001"  -- SOH control char; cannot be typed into WoW chat
     local links = {}
-    local workText = text:gsub("|c%x+|H.-|h%[.-%]|h|r", function(link)
+    local workText = text:gsub("|c[^|]+|H.-|h%[.-%]|h|r", function(link)
         links[#links + 1] = link
         return S .. #links .. S
     end)
@@ -175,6 +176,14 @@ local function GetActiveChatType()
     return lastChatType, lastTellTarget
 end
 
+-- Forever only has the global SendChatMessage while deprecation fallbacks are loaded.
+local function SendChat(...)
+    local send = C_ChatInfo and C_ChatInfo.SendChatMessage or SendChatMessage
+    send(...)
+end
+
+local originalOnEnterPressed = {}
+
 local function OnEnterPressedHandler(editBox)
     local text     = editBox:GetText()
     local chatType = editBox:GetAttribute("chatType") or "SAY"
@@ -197,11 +206,8 @@ local function OnEnterPressedHandler(editBox)
         end
     end
 
-    ChatEdit_SendText(editBox, 1)
-    editBox:SetText("")
-    if not IsShiftKeyDown() then
-        ChatEdit_DeactivateChat(editBox)
-    end
+    -- Blizzard's own handler sends, updates history/sticky type and closes the box.
+    originalOnEnterPressed[editBox](editBox)
 end
 
 local function ParseVersion(v)
@@ -241,7 +247,9 @@ local function HookChatFrames()
     local numWindows = NUM_CHAT_WINDOWS or 10
     for i = 1, numWindows do
         local frame = _G["ChatFrame" .. i]
-        if frame and frame.editBox and frame.editBox:GetScript("OnEnterPressed") then
+        local original = frame and frame.editBox and frame.editBox:GetScript("OnEnterPressed")
+        if original and original ~= OnEnterPressedHandler then
+            originalOnEnterPressed[frame.editBox] = original
             frame.editBox:SetScript("OnEnterPressed", OnEnterPressedHandler)
         end
     end
@@ -351,7 +359,7 @@ local function HandleSlashCommand(input, dialectKey)
             print(PREFIX .. "Usage: /troll ooc <text>")
         else
             local chatType, tellTarget = GetActiveChatType()
-            SendChatMessage(rest, chatType, nil, tellTarget)
+            SendChat(rest, chatType, nil, tellTarget)
         end
 
     elseif cmd == "test" then
@@ -397,7 +405,7 @@ local function HandleSlashCommand(input, dialectKey)
     else
         local translated = TrollSpeak_Translate(input, dialectKey)
         local chatType, tellTarget = GetActiveChatType()
-        SendChatMessage(translated, chatType, nil, tellTarget)
+        SendChat(translated, chatType, nil, tellTarget)
     end
 end
 

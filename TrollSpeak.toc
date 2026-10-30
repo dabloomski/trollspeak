@@ -1,4 +1,4 @@
-## Interface: 11509
+## Interface: 11509, 16001
 ## Title: TrollSpeak
 ## Notes: Translates text to troll-speak for the hardcore troll guild
 ## Author: dabloom (FishingPaul)
